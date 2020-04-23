@@ -17,18 +17,22 @@ The function receive_msg(blocking) returns a status flag (Boolean) and a receive
 
 An example for calling receive_msg() in blocking mode is the following:
 
+```
 from netinterface import network_interface
 netif = network_interface(NET_PATH, OWN_ADDR)		# create network interface netif
 status, msg = netif.receive_msg(blocking=True)		# when returns, status is True and msg contains a message
 print(msg)
+```
 
 An example for calling receive_msg() in non-blocking mode is the following:
 
+```
 from netinterface import network_interface
-netif = network_interface(NET_PATH, OWN_ADDR)		# create network interface netif
+netif = network_interface(NET_PATH, OWN_ADDR)	# create network interface netif
 status, msg = netif.receive_msg(blocking=False)    
-if status: print(msg)								# if status is True, then a message was returned in msg, and we can print it
-else: ...											# otherwise do something else, e.g., wait and try again
+if status: print(msg)				# if status is True, then a message was returned in msg, and we can print it
+else: ...					# otherwise do something else, e.g., wait and try again
+```
 
 Creating a new network interface is done with the constructor of the network_interface class. The constructor takes two input parameters:
 - a path where the messages sent to the various addresses are saved in files (e.g., './' or 'C:/network/')
