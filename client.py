@@ -1,8 +1,20 @@
 import os, sys, getopt, time
 from netinterface import network_interface
+from shared import *
+from Crypto.PublicKey import RSA
 
 NET_PATH = './network/'
 OWN_ADDR = 'B'
+my_pubenckeyfile = './network/A/pubenc.pem'
+my_pubsigkeyfile = './network/A/pubsig.pem'
+my_privenckeyfile = 'priv.pem'
+server_pubenckeyfile = './network/B/pubenc.pem'
+server_pubsigkeyfile = './network/B/pubsig.pem'
+server_pubenckey = load_publickey(server_pubenckeyfile)
+server_pubsigkey = load_publickey(server_pubsigkeyfile)
+from_server_seq_num = 0
+local_seq_num = 0
+version = 0
 
 # ------------
 # main program
@@ -19,22 +31,21 @@ for opt, arg in opts:
 		print('Usage: python client.py')
 		sys.exit(0)
 
-if (NET_PATH[-1] != '/') and (NET_PATH[-1] != '\\'): NET_PATH += '/'
+print('Generating a new 2048-bit RSA key pair...')
+keypair = RSA.generate(2048)
+save_publickey(keypair.publickey(), my_pubenckeyfile)
+save_keypair(keypair, my_privenckeyfile)
+print('Done.')
 
-if not os.access(NET_PATH, os.F_OK):
-	print('Error: Cannot access path ' + NET_PATH)
-	sys.exit(1)
-
-if len(OWN_ADDR) > 1: OWN_ADDR = OWN_ADDR[0]
-
-if OWN_ADDR not in network_interface.addr_space:
-	print('Error: Invalid address ' + OWN_ADDR)
-	sys.exit(1)
+def send_login():
+	print('Sending login message.')
+	msg = construct_msg(version, local_seq_num, 'LGN', server_pubenckey)
+	netif.send_msg('A', msg)
 
 # main loop
 netif = network_interface(NET_PATH, OWN_ADDR)
-print('Main loop started...')
 while True:
-	msg = input('Type a message: ')
-	netif.send_msg('A', msg.encode('utf-8'))
-	if input('Continue? (y/n): ') == 'n': break
+	msg = input('Type a command: ')
+	if msg == 'login':
+		send_login()
+	status, msg = netif.receive_msg(blocking=True)
