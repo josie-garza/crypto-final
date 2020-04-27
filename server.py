@@ -1,8 +1,18 @@
 import os, sys, getopt, time
 from netinterface import network_interface
+from shared import *
+from Crypto.PublicKey import RSA
 
 NET_PATH = './network/'
 OWN_ADDR = 'A'
+my_pubenckeyfile = './network/B/pubenc.pem'
+my_pubsigkeyfile = './network/B/pubsig.pem'
+my_privenckeyfile = 'server_priv.pem'
+client_pubenckeyfile = './network/A/pubenc.pem'
+client_pubsigkeyfile = './network/A/pubsig.pem'
+from_client_seq_num = 0
+local_seq_num = 0
+version = 0
 
 # ------------
 # main program
@@ -19,17 +29,11 @@ for opt, arg in opts:
 		print('Usage: python server.py')
 		sys.exit(0)
 
-if (NET_PATH[-1] != '/') and (NET_PATH[-1] != '\\'): NET_PATH += '/'
-
-if not os.access(NET_PATH, os.F_OK):
-	print('Error: Cannot access path ' + NET_PATH)
-	sys.exit(1)
-
-if len(OWN_ADDR) > 1: OWN_ADDR = OWN_ADDR[0]
-
-if OWN_ADDR not in network_interface.addr_space:
-	print('Error: Invalid address ' + OWN_ADDR)
-	sys.exit(1)
+print('Generating a new 2048-bit RSA key pair for server...')
+keypair = RSA.generate(2048)
+save_publickey(keypair.publickey(), my_pubenckeyfile)
+save_keypair(keypair, my_privenckeyfile)
+print('Done.')
 
 # main loop
 netif = network_interface(NET_PATH, OWN_ADDR)
