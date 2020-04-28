@@ -21,22 +21,11 @@ version = 0
 # ------------
 # main program
 # ------------
-
-try:
-	opts, args = getopt.getopt(sys.argv[1:], shortopts='hp:a:', longopts=['help', 'path=', 'addr='])
-except getopt.GetoptError:
-	print('Usage: python client.py')
-	sys.exit(1)
-
-for opt, arg in opts:
-	if opt == '-h' or opt == '--help':
-		print('Usage: python client.py')
-		sys.exit(0)
-
 print('Generating a new 2048-bit RSA key pair for client...')
 keypair = RSA.generate(2048)
 save_publickey(keypair.publickey(), my_pubenckeyfile)
 save_keypair(keypair, my_privenckeyfile)
+print('Done')
 
 def send_message(msg):
 	netif.send_msg('A', msg)
@@ -62,41 +51,12 @@ def decrypt_file(filename, bytestring):
 # main loop
 netif = network_interface(NET_PATH, OWN_ADDR)
 while True:
-	msg = input('Type a command: ')
-	if msg == 'login':
-		msg = construct_msg(version, local_seq_num, 'LGN', load_publickey(server_pubenckeyfile))
-		send_message(msg)
-	if msg == 'mkdir':
-		name = input('Type new directory name: ')
-		msg = construct_msg(version, local_seq_num, 'MKD', load_publickey(server_pubenckeyfile), name)
-		send_message(msg)
-	if msg == 'rmdir':
-		name = input('Type directory to remove: ')
-		msg = construct_msg(version, local_seq_num, 'RMD', load_publickey(server_pubenckeyfile), name)
-		send_message(msg)
-	if msg == 'gwd':
-		msg = construct_msg(version, local_seq_num, 'GWD', load_publickey(server_pubenckeyfile))
-		send_message(msg)
-	if msg == 'cwd':
-		name = input('Type folder to move to: ')
-		msg = construct_msg(version, local_seq_num, 'GWD', load_publickey(server_pubenckeyfile), name)
-		send_message(msg)
-	if msg == 'lst':
-		msg = construct_msg(version, local_seq_num, 'LST', load_publickey(server_pubenckeyfile))
-		send_message(msg)
-	if msg == 'upl':
-		name = input('Type filename to upload: ')
-		msg = construct_msg(version, local_seq_num, 'UPL', load_publickey(server_pubenckeyfile), name, encrypt_file(name))
-		send_message(msg)
-	if msg == 'dnl':
-		name = input('Type filename to download: ')
-		msg = construct_msg(version, local_seq_num, 'DNL', load_publickey(server_pubenckeyfile), name)
-		send_message(msg)
-	if msg == 'rmf':
-		name = input('Type filename to remove: ')
-		msg = construct_msg(version, local_seq_num, 'RMF', load_publickey(server_pubenckeyfile), name)
-		send_message(msg)
-	if msg == 'logout':
-		msg = construct_msg(version, local_seq_num, 'LGO', load_publickey(server_pubenckeyfile))
+	cmd_line = input('Type a command: ')
+	cmd, add_info, filename = parse_cmd_line(cmd_line)
+	if is_valid_cmd(cmd):
+		payload = ''
+		if filename != '':
+			payload = encrypt_file(filename)
+		msg = construct_msg(version, local_seq_num, cmd, load_publickey(server_pubenckeyfile), add_info, filename)
 		send_message(msg)
 	status, rcv = netif.receive_msg(blocking=False)
