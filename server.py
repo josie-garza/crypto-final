@@ -5,14 +5,143 @@ from Crypto.PublicKey import RSA
 
 NET_PATH = './network/'
 OWN_ADDR = 'A'
-my_pubenckeyfile = './network/B/pubenc.pem'
-my_pubsigkeyfile = './network/B/pubsig.pem'
-my_privenckeyfile = 'server_priv.pem'
-client_pubenckeyfile = './network/A/pubenc.pem'
-client_pubsigkeyfile = './network/A/pubsig.pem'
+USER_ADDR = 'B'
+SERV_DIR = './server/'
+current_dir = ''
+my_pubenckeyfile = './server/keys/server/pubenc.pem'
+my_pubsigkeyfile = './server/keys/server/pubsig.pem'
+my_privenckeyfile = './server/keys/server/privenc.pem'
+my_privsigkeyfile = './server/keys/server/privsig.pem'
+client_pubenckeyfile = ''
+client_pubsigkeyfile = ''
 from_client_seq_num = 0
 local_seq_num = 0
 version = 0
+current_user = ''
+
+# ------------
+# definitions
+# ------------
+
+
+def change_dir(directories, old_dir):  # TODO: debug
+	"""Returns the newly changed directory, or the old one if an error is encountered.
+
+	change -- a list of the directories in the command (e.g. ['..', 'dir'] )
+	"""
+	new_dir = old_dir
+	while len(directories) > 0 and directories[0] != '':
+		if directories[0] == '..':
+			if new_dir == '' or new_dir == '/':
+				send_error_msg('at topmost directory')
+				return current_dir
+			else:
+				path = new_dir.split('/')
+				del path[-2]
+				new_dir = '/'.join(path)
+				del directories[0]
+		else:
+			new_dir = new_dir + directories[0] + '/'
+	return new_dir
+
+
+def send_success():
+	"""Sends a success message to the client."""
+	global local_seq_num
+	msg = construct_msg(version, local_seq_num, 'SUC', client_pubenckeyfile)
+	local_seq_num += 1
+	netif.send_msg(USER_ADDR, msg)
+
+
+def login():
+	"""Returns true if login is successful."""
+	pass  # TODO
+
+
+def logout():
+	pass  # TODO
+
+
+def process_command(code, add_info='', file=b''):  # TODO: debug
+	"""Executes a received command."""
+	global local_seq_num, current_dir
+	if code == 'LGN':
+		if login():
+			construct_msg(version, local_seq_num, 'SCS', client_pubenckeyfile)
+	elif code == 'MKD':
+		if add_info == '':
+			send_error_msg('no parameter given')
+		else:
+			syscode = os.system('mkdir ' + SERV_DIR + current_dir + add_info)
+			if syscode != 0:
+				send_error_msg('unable to make directory')
+			else:
+				send_success()
+	elif code == 'RMD':
+		if add_info == '':
+			send_error_msg('no parameter given')
+		else:
+			syscode = os.system('rm -r ' + SERV_DIR + current_dir + add_info)
+			if syscode != 0:
+				send_error_msg('unable to remove directory')
+			else:
+				send_success()
+	elif code == 'GWD':
+		msg = construct_msg(version, local_seq_num, 'REP', client_pubenckeyfile, add_info=current_dir)
+		netif.send_msg(USER_ADDR, msg)
+		local_seq_num += 1
+	elif code == 'CWD':
+		directories = add_info.split('/')
+		current_dir = change_dir(directories, current_dir)
+	elif code == 'LST':  # TODO: is it an issue that this will break for long lists?
+		directories = os.listdir(SERV_DIR + current_dir)
+		output = ', '.join(directories)
+		msg = construct_msg(version, local_seq_num, 'REP', client_pubenckeyfile, add_info=output)
+		local_seq_num += 1
+	elif code == 'UPL':
+		if add_info == '':
+			send_error_msg('no file name given')
+		elif file == '':
+			send_error_msg('no file given')
+		else:
+			f = open(SERV_DIR + current_dir + add_info, 'wb')
+			f.write(file)
+			f.close()
+			send_success()
+	elif code == 'DNL':
+		if add_info == '':
+			send_error_msg('no file name given')
+		elif add_info not in os.listdir(SERV_DIR + current_dir):
+			send_error_msg('file with this name not found')
+		else:
+			f = open(SERV_DIR + current_dir + add_info, 'rb')
+			file_contents = f.read()
+			f.close()
+			construct_msg(version, local_seq_num, 'REP', client_pubenckeyfile, file=file_contents)
+	elif code == 'RMF':
+		if add_info == '':
+			send_error_msg('no file name given')
+		elif add_info not in os.listdir(SERV_DIR + current_dir):
+			send_error_msg('file does not exist')
+		else:
+			syscode = os.system('rm ' + SERV_DIR + current_dir + add_info)
+			if syscode != 0:
+				send_error_msg('unable to remove file')
+			else:
+				send_success()
+	elif code == 'LGO':
+		logout()
+	else:
+		send_error_msg('invalid command')
+
+
+def send_error_msg(code, seq_num=-1):
+	"""Sends and error message to the client.
+
+	Error messages are sent with the ERR command and a specification of the error as the parameter
+	"""
+	pass  # TODO
+
 
 # ------------
 # main program
