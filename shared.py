@@ -1,9 +1,15 @@
 from Crypto.PublicKey import RSA
+from Crypto.PublicKey import ECC
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Signature import DSS
+
+
+CURRENT_VERSION = 0
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                            Encryption & Decryption
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 
 # IN: plaintext (bytestring), pub_key (RSA type)
 # OUT: ciphertext (bytestring)
@@ -16,6 +22,7 @@ def encrypt_with_RSA(plaintext, pub_key):
     except ValueError:
         print("Encryption ValueError: plaintext is too long (190 byte max)\nPlaintext: " + plaintext.decode('ascii'))
         sys.exit(1)
+        
 
 # IN: ciphertext (bytestring), priv_key (RSA type)
 # OUT: plaintext (bytestring)
@@ -39,6 +46,19 @@ def decrypt_with_RSA(ciphertext, key_pair):
 #                                                    Misc
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+
+# IN: cmd (string)
+# OUT: returns true if the command is a valid one, and false otherwise
+def is_valid_cmd(cmd):
+    return cmd.upper() in ["LGN", "MKD", "RMD", "GWD", "CWD", "LST", "UPL", "DNL", "RMF", "LGO"]
+
+# IN: None
+# OUT: version (Int)
+# DESC: returns the current version number
+def get_ver_num():
+    return CURRENT_VERSION
+
+    
 def construct_msg(ver, seq_num, cmd, recipient_pub_key, add_info="", file=""):
     print('Constructing a message.')
 
@@ -49,42 +69,42 @@ def construct_msg(ver, seq_num, cmd, recipient_pub_key, add_info="", file=""):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-# IN: pubkey (RSA type), pubkeyfile (string)
-# OUT: None
-# DESC: Writes the passed public key to the passed file.    
-def save_publickey(pubkey, pubkeyfile):
-    with open(pubkeyfile, 'wb') as f:
-        f.write(pubkey.export_key(format='PEM'))
-
-
-# IN: pubkeyfile (string)
-# OUT: None
-# DESC: Attempts to load a key public key based on pubkeyfile. Prints error if unable to do so.
-def load_publickey(pubkeyfile):
-    with open(pubkeyfile, 'rb') as f:
-        pubkeystr = f.read()
-    try:
-        return RSA.import_key(pubkeystr)
-    except ValueError:
-        print('Error: Cannot import public key from file ' + pubkeyfile)
-        sys.exit(1)
-
-
-# IN: keypair (RSA type), privkeyfile (string)
+# IN: key (RSA/ECC type), privkeyfile (string)
 # OUT: None
 # DESC: Writes the passed keypair to the passed file.
-def save_keypair(keypair, privkeyfile):
-    with open(privkeyfile, 'wb') as f:
-        f.write(keypair.export_key(format='PEM'))
-
-# IN: privkeyfile (string)
-# OUT: None
-# DESC: Attempts to load a key pair based on privkeyfile. Prints error if unable to do so.
-def load_keypair(privkeyfile):
-    with open(privkeyfile, 'rb') as f:
-        keypairstr = f.read()
+# NOTE: key can either be a keypair or a publick key
+def save_key(key, keyfile):
+    f = open(keyfile, 'wb')
+    f.write(key.export_key(format='PEM'))
+    f.close()
+    
+# IN: keyfile (string)
+# OUT: key (RSA type)
+# DESC: Attempts to load a key from keyfile. Prints error if unable to do so.
+# NOTE: Key can either be a public key or key pair
+def load_RSA_key(keyfile):
+    f = open(keyfile, 'rb')
+    keystr = f.read()
+    f.close()
+    
     try:
-        return RSA.import_key(keypairstr)
+        return RSA.import_key(keystr)
     except ValueError:
-        print('Error: Cannot import private key from file ' + privkeyfile)
+        print('Error: Cannot import key from file ' + keyfile)
+        sys.exit(1)
+
+        
+# IN: keyfile (string)
+# OUT: key (ECC type)
+# DESC: Attempts to load a key from keyfile. Prints error if unable to do so.
+# NOTE: Key can either be a public key or key pair
+def load_ECC_key(keyfile):
+    f = open(keyfile, 'rb')
+    keystr = f.read()
+    f.close()
+    
+    try:
+        return ECC.import_key(keystr)
+    except ValueError:
+        print('Error: Cannot import key from file ' + keyfile)
         sys.exit(1)
