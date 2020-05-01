@@ -1,3 +1,4 @@
 network/
 __pycache__/
 priv.pem
+.idea
