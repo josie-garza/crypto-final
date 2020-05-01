@@ -11,9 +11,7 @@ my_pubenckeyfile = './server/keys/client/pubenc.pem'
 my_pubsigkeyfile = './server/keys/client/pubsig.pem'
 my_privenckeyfile = './client/keys/client/privenc.pem'
 my_privsigkeyfile = './client/keys/client/privsig.pem'
-statefile  = 'statefile.txt'
-with open(statefile, 'rt') as sf:
-	my_aeskey = bytes.fromhex(sf.readline()[len("key: "):len("key: ")+32])
+my_privaeskeyfile  = './client/keys/client/privaes.txt'
 server_pubenckeyfile = './server/keys/server/pubenc.pem'
 server_pubsigkeyfile = './server/keys/server/pubsig.pem'
 from_server_seq_num = 0
@@ -28,6 +26,10 @@ save_publickey(keypair.publickey(), my_pubenckeyfile)
 save_keypair(keypair, my_privenckeyfile)
 print('Done')
 
+def get_aes_key():
+	with open(my_privaeskeyfile, 'rt') as sf:
+		return bytes.fromhex(sf.readline()[len("key: "):len("key: ")+32])
+
 def encrypt_file(filename):
 	"""
 	Encrypted the file under the given filename with GCM encryption.
@@ -35,7 +37,7 @@ def encrypt_file(filename):
 	inf = open(filename, 'r')
 	payload = inf.read()
 	payload = payload.encode('ascii')
-	cipher = AES.new(my_aeskey, AES.MODE_GCM)
+	cipher = AES.new(get_aes_key(), AES.MODE_GCM)
 	ciphertext, mac = cipher.encrypt_and_digest(payload)
 	nonce = cipher.nonce
 	return nonce + mac + ciphertext
@@ -47,7 +49,7 @@ def decrypt_file(filename, bytestring):
 	received_nonce = bytestring[:16]
 	received_mac = bytestring[16:32]
 	ciphertext = bytestring[32:]
-	cipher = AES.new(my_aeskey, AES.MODE_GCM, received_nonce)
+	cipher = AES.new(get_aes_key(), AES.MODE_GCM, received_nonce)
 	plaintext = cipher.decrypt_and_verify(ciphertext, received_mac)
 	f = open(filename, 'w')
 	f.write(plaintext)
