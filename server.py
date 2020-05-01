@@ -117,7 +117,7 @@ def process_command(code, add_info='', file=b''):  # TODO: debug
 			f = open(SERV_DIR + current_dir + add_info, 'rb')
 			file_contents = f.read()
 			f.close()
-			construct_msg(version, local_seq_num, 'REP', client_pubenckeyfile, file=file_contents)
+			construct_msg(version, local_seq_num, 'REP', client_pubenckeyfile, add_info=add_info, file=file_contents)
 	elif code == 'RMF':
 		if add_info == '':
 			send_error_msg('no file name given')
