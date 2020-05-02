@@ -12,9 +12,9 @@ SERV_DIR = './server/'
 user_dir = ''
 current_dir = ''
 my_pubenckey = load_RSA_key(SERV_DIR + 'keys/server/pubenc.pem')
-my_pubsigkey = load_RSA_key(SERV_DIR + 'keys/server/pubsig.pem')
+my_pubsigkey = load_ECC_key(SERV_DIR + 'keys/server/pubsig.pem')
 my_privenckey = load_RSA_key(SERV_DIR + 'keys/server/privenc.pem')
-my_privsigkey = load_RSA_key(SERV_DIR + 'keys/server/privsig.pem')
+my_privsigkey = load_ECC_key(SERV_DIR + 'keys/server/privsig.pem')
 client_pubenckey = ''
 client_pubsigkey = ''
 from_client_seq_num = 0
@@ -223,15 +223,14 @@ print('Server waiting to receive messages...')
 
 # main loop
 while True:  # TODO: debug
-    status, enc_msg = netif.receive_msg(blocking=True)  # when returns, status is True and msg contains a message
-    received_version, payload, auth_tag, received_file, _ = parse_received_msg(enc_msg)
-    if version != received_version:
-        send_error_msg('wrong version number')
-        print("Wrong version number received")
-    else:
-        if current_user == '':
-            # login case
-            print("Attempting login")
+	status, enc_msg = netif.receive_msg(blocking=True)
+	received_version, payload, auth_tag, received_file, _ = parse_received_msg(enc_msg)
+	if version != received_version:
+		send_error_msg('wrong version number')
+		print("Wrong version number received")
+	else:
+		if current_user == '':
+			print("Attempting login")
             directories = os.listdir(SERV_DIR + 'keys/')
             directories.remove('server')
             for key_dir in directories:
@@ -267,4 +266,3 @@ while True:  # TODO: debug
             else:
                 send_error_msg('signature failed')
                 print("Message received but signature verification failed (SIG returned)")
-

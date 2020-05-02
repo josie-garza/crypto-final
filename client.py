@@ -7,28 +7,20 @@ from Crypto.Cipher import AES
 NET_PATH = './network/'
 OWN_ADDR = 'B'
 SERVER_ADDR='A'
-my_pubenckeyfile = './server/keys/client/pubenc.pem'
-my_pubsigkeyfile = './server/keys/client/pubsig.pem'
-my_privenckeyfile = './client/keys/client/privenc.pem'
-my_privsigkeyfile = './client/keys/client/privsig.pem'
-my_privaeskeyfile  = './client/keys/client/privaes.txt'
-server_pubenckeyfile = './server/keys/server/pubenc.pem'
-server_pubsigkeyfile = './server/keys/server/pubsig.pem'
+MY_DIR = '789'
+my_pubenckey = load_RSA_key('./server/keys/' + MY_DIR + '/pubenc.pem')
+my_pubsigkey = load_ECC_key('./server/keys/' + MY_DIR + '/pubsig.pem')
+my_privenckey = load_RSA_key('privenc.pem')
+my_privsigkey = load_ECC_key('privsig.pem')
+server_pubenckey = load_RSA_key('./server/keys/server/pubenc.pem')
+server_pubsigkey = load_ECC_key('./server/keys/server/pubsig.pem')
 from_server_seq_num = 0
 local_seq_num = 0
 
-# ------------
-# main program
-# ------------
-print('Generating a new 2048-bit RSA key pair for client...')
-keypair = RSA.generate(2048)
-save_publickey(keypair.publickey(), my_pubenckeyfile)
-save_keypair(keypair, my_privenckeyfile)
-print('Done')
-
-def get_aes_key():
-	with open(my_privaeskeyfile, 'rt') as sf:
+def get_aes_key(filename):
+	with open(filename, 'rt') as sf:
 		return bytes.fromhex(sf.readline()[len("key: "):len("key: ")+32])
+my_privaeskey  = get_aes_key('privaes.txt')
 
 def encrypt_file(filename):
 	"""
@@ -38,68 +30,100 @@ def encrypt_file(filename):
 	payload = inf.read()
 	payload = payload.encode('ascii')
 	cipher = AES.new(get_aes_key(), AES.MODE_GCM)
-	ciphertext, mac = cipher.encrypt_and_digest(payload)
+	ciphertext, auth_tag = cipher.encrypt_and_digest(payload)
 	nonce = cipher.nonce
-	return nonce + mac + ciphertext
+	return auth_tag, nonce + ciphertext
 
-def decrypt_file(filename, bytestring):
+def decrypt_file(filename, auth_tag, bytestring):
 	"""
 	Decrypt the given bytes using GCM and save to the given filename.
 	"""
 	received_nonce = bytestring[:16]
-	received_mac = bytestring[16:32]
-	ciphertext = bytestring[32:]
+	ciphertext = bytestring[16:]
 	cipher = AES.new(get_aes_key(), AES.MODE_GCM, received_nonce)
-	plaintext = cipher.decrypt_and_verify(ciphertext, received_mac)
+	plaintext = cipher.decrypt_and_verify(ciphertext, auth_tag)
 	f = open(filename, 'w')
 	f.write(plaintext)
 
+def send_oos_msg(seq_num=-1):
+	"""Sends and OOS message to the server.
+	To have a blank OOS command, use seq_num=-2, otherwise seq_num will be added to parameter field.
+	"""
+	if seq_num == -2:
+		msg = construct_msg(get_ver_num(), local_seq_num, 'OOS', server_pubenckey, my_privsigkey)
+	else:
+		seq_num_byte = seq_num.to_bytes(length=185, byteorder='big')
+		msg = construct_msg(get_ver_num(), local_seq_num, 'OOS', server_pubenckey, my_privsigkey, seq_num_byte)
+	netif.send_msg(SERVER_ADDR, msg)
+
 def handle_seq_num(received_seq_num):
-	if received_seq_num < local_seq_num:
-		msg = construct_msg(get_ver_num(), local_seq_num, "OOS", load_RSA_key(server_pubenckeyfile))
-		netif.send_msg(SERVER_ADDR, msg)
+	if received_seq_num == from_server_seq_num + 1:
+		return 1
+	elif received_seq_num <= from_server_seq_num:
+		send_error_msg(seq_num=-2)
+		print("Sequence number too low - OOS returned")
 		return -1
 	else:
-		return 1
+		send_error_msg(seq_num=received_seq_num)
+		print("Sequence number too high - OOS returned")
+		return -1
 
-def process_command(cmd, add_info, file):
+def process_command(cmd, add_info, auth_tag, file):
 	if cmd == 'SCS': # on login success
-		local_seq_num = 0								   ## IDK if this is right
+		local_seq_num = 0
+		print('Login success.')
 	elif cmd == 'SUC':
-		print("Success messaged received\n")
+		print("Success messaged received.")
 	elif cmd == 'REP':
-		if file:										 ## IDK if this is right, how am i supposed to differentiate between
-			decrypt_file(add_info, file)				## a rep with a file and one without a file?
+		if file != '' and auth_tag != '':
+			decrypt_file(add_info, auth_tag, file)
+			print('Saved file ' + add_info + ' to your local drive.')
 		else:
-			print(add_info)
-	elif cmd == "ERR":
-		print("Error message received.\n")
+			print('Response: ', add_info)
+	elif cmd == 'ERR':
+		print('Error message received - ', add_info)
+	elif cmd == 'OOS':
+		if add_info != '':
+			from_server_seq_num = int(add_info)
+			print('OOS - expected client sequence number set to ' + str(from_client_seq_num))
+		else:
+			print('OOS without sequence number changed received.')
 	else:
-		print("Recieved an unknown command.\n")
-
+		print('Recieved an unknown command.')
 
 def process_msg(rcv):
-	if verify_signature(rcv, load_ECC_key(server_pubsigkeyfile)):
-		msg = decrypt_with_RSA(rcv, key_pair)
-		version = msg[0:2]
-		msg_sqn = msg[2:4]
-		cmd = msg[4:7]
-		add_info = msg[7:263]                               ## IDK if this is right
-		file = msg[263:]								    ## IDK if this is right
-		if handle_seq_num(msg_sqn) > 0:
-			process_cmd(cmd, add_info, file)
+	print('received a message')
+	if verify_signature(rcv, server_pubsigkey):
+		ver, enc_payload, auth_tag, file, sig = parse_received_msg(rcv)
+		msg = decrypt_with_RSA(enc_payload, my_privenckey)
+		received_seq_num = int.from_bytes(msg[:2], byteorder='big')
+		if handle_seq_num(received_seq_num) > 0:
+			cmd = msg[2:5]
+			add_info = msg[5:190]
+			process_cmd(cmd, add_info, auth_tag, file)
 
-# main loop
 netif = network_interface(NET_PATH, OWN_ADDR)
 while True:
 	cmd_line = input('Type a command: ')
-	cmd, add_info, filename = parse_cmd_line(cmd_line)
+	if cmd_line == 'quit':
+		sys.exit()
+	parsed = parse_cmd_line(cmd_line)
+	cmd = parsed[0]
 	if is_valid_cmd(cmd):
-		payload = ''
-		if filename != '':
-			payload = encrypt_file(filename)
-		msg = construct_msg(get_ver_num(), local_seq_num, cmd, load_RSA_key(server_pubenckeyfile), add_info, payload)
+		if len(parsed) > 1:
+			if cmd == 'LGN':
+				if parsed[1] != MY_DIR:
+					print('You did not send the right user ID with the login.')
+				msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
+			if cmd == 'UPL':
+				auth_tag, enc_file = encrypt_file(parsed[1])
+				msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1], enc_file, auth_tag)
+			else:
+				msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
+		else:
+			msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
 		local_seq_num += 1
 		netif.send_msg(SERVER_ADDR, msg)
 	status, rcv = netif.receive_msg(blocking=False)
-	process_msg(rcv)
+	if status == True:
+		process_msg(rcv)

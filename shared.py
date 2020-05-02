@@ -25,7 +25,7 @@ def encrypt_with_RSA(plaintext, pub_key):
     except ValueError:
         print("Encryption ValueError: plaintext is too long (190 byte max)\nPlaintext: " + plaintext.decode('ascii'))
         sys.exit(1)
-        
+
 
 # IN: ciphertext (bytestring), priv_key (RSA type)
 # OUT: plaintext (bytestring)
@@ -43,7 +43,7 @@ def decrypt_with_RSA(ciphertext, key_pair):
     except TypeError:
         print("Decryption TypeError: the RSA key has no private half - you are trying to decrypt with a public key!")
         sys.exit(1)
-        
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                             Digital Signatures
@@ -70,8 +70,8 @@ def verify_signature_helper(sig, msg, pub_key):
         return True
     except ValueError:
         return False
-    
-    
+
+
 # IN: msg (bytestring), pub_key (ECC type)
 # OUT: True if the message's signature is valid, False otherwise
 # DESC: parses the message using parse_received_msg and then verifies the signature
@@ -132,7 +132,7 @@ def parse_received_msg(msg):
 
     auth_tag = ''
     this_file = ''
-    
+
     # rest_of_msg is the empty string, there was no file
     if (len(rest_of_msg) > 0):
         auth_tag = rest_of_msg[:16]
@@ -141,7 +141,7 @@ def parse_received_msg(msg):
         this_file = rest_of_msg
 
     return [ver, enc_payload, auth_tag, this_file, sig]
-        
+
 
 # IN: ver (bytestrign), seq_num (bytestring), cmd (bytestring), recipient_pub_RSA_key (RSA type),
 #     sender_priv_ECC_key (ECC type), add_info (bytestring, optional), enc_file (bytestring, optional),
@@ -150,10 +150,16 @@ def parse_received_msg(msg):
 # DESC: Takes all of the relevant information necessary for constructing a message, encrypts the payload,
 #      digitally signs the important information, and smashes it all together
 def construct_msg(ver, seq_num, cmd, recipient_pub_RSA_key, sender_priv_ECC_key,
-                  add_info=b'', enc_file=b'', file_auth=b''):
+                  add_info='', enc_file=b'', file_auth=b''):
+    # converting inputs into bytes
+    ver = ver.to_bytes(length=2, byteorder='big')
+    seq_num = seq_num.to_bytes(length=2, byteorder='big')
+    cmd = cmd.encode('ascii')
+    add_info = add_info.encode('ascii')
+
     my_msg = b''
     my_msg += ver
-    my_msg += encrypt_with_RSA(seq_num + cmd + add_info, recipient_pub_key)
+    my_msg += encrypt_with_RSA(seq_num + cmd + add_info, recipient_pub_RSA_key)
     my_msg += file_auth
 
     sig = gen_signature(sender_priv_ECC_key, my_msg)
@@ -162,23 +168,32 @@ def construct_msg(ver, seq_num, cmd, recipient_pub_RSA_key, sender_priv_ECC_key,
     my_msg += sig
 
     return my_msg
-    
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                             Key Storage & Loading
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-# IN: key (RSA/ECC type), privkeyfile (string)
+# IN: key (RSA type), privkeyfile (string)
 # OUT: N/A
 # DESC: Writes the passed keypair to the passed file.
 # NOTE: key can either be a keypair or a public key
-def save_key(key, keyfile):
+def save_RSA_key(key, keyfile):
     f = open(keyfile, 'wb')
     f.write(key.export_key(format='PEM'))
     f.close()
 
-    
+# IN: key (ECC type), privkeyfile (string)
+# OUT: N/A
+# DESC: Writes the passed keypair to the passed file.
+# NOTE: key can either be a keypair or a public key
+def save_ECC_key(key, keyfile):
+    f = open(keyfile, 'wt')
+    f.write(key.export_key(format='PEM'))
+    f.close()
+
+
 # IN: keyfile (string)
 # OUT: key (RSA type)
 # DESC: Attempts to load a key from keyfile. Prints error if unable to do so.
@@ -187,14 +202,13 @@ def load_RSA_key(keyfile):
     f = open(keyfile, 'rb')
     keystr = f.read()
     f.close()
-    
     try:
         return RSA.import_key(keystr)
     except ValueError:
         print('ValueError: Cannot import RSA key from file ' + keyfile)
         sys.exit(1)
 
-        
+
 # IN: keyfile (string)
 # OUT: key (ECC type)
 # DESC: Attempts to load a key from keyfile. Prints error if unable to do so.
@@ -203,20 +217,47 @@ def load_ECC_key(keyfile):
     f = open(keyfile, 'rb')
     keystr = f.read()
     f.close()
-    
+
     try:
         return ECC.import_key(keystr)
     except ValueError:
         print('ValueError: Cannot import ECC key from file ' + keyfile)
         sys.exit(1)
 
-        
+def generateTestingKeys():
+    print('Generating a new 2048-bit RSA key pair for client...')
+    keypair = RSA.generate(2048)
+    save_RSA_key(keypair.publickey(), './server/keys/789/pubenc.pem')
+    save_RSA_key(keypair, 'privenc.pem')
+    print('Done')
+
+    print('Generating a new 2048-bit RSA key pair for server...')
+    keypair = RSA.generate(2048)
+    save_RSA_key(keypair.publickey(), './server/keys/server/pubenc.pem')
+    save_RSA_key(keypair, './server/keys/server/privenc.pem')
+    print('Done')
+
+    print('Generating a new 2048-bit ECC key pair for client...')
+    ECC_priv_key = ECC.generate(curve='P-256')
+    publickey = ECC_priv_key.public_key()
+    save_ECC_key(publickey, './server/keys/789/pubsig.pem')
+    save_ECC_key(ECC_priv_key, 'privsig.pem')
+    print('Done')
+
+    print('Generating a new 2048-bit ECC key pair for server...')
+    ECC_priv_key = ECC.generate(curve='P-256')
+    publickey = ECC_priv_key.public_key()
+    save_ECC_key(publickey, './server/keys/server/pubsig.pem')
+    save_ECC_key(ECC_priv_key, './server/keys/server/privsig.pem')
+    print('Done')
+
 # This is solely for testing purposes and will be removed before finalization
 def main():
     # Basic signature generation and verification testing:
+    #generateTestingKeys()
     my_msg_first = b'Hello, my name is Jack'
     my_msg_second = b'hehehe'
-    
+
     ECC_priv_key = ECC.generate(curve='P-256')
     ECC_pub_key = ECC_priv_key.public_key()
 
@@ -239,10 +280,10 @@ def main():
     # Basic encryption and decryption testing:
     plaintext1 = b"Hello there!"
     plaintext2 = b"It's over Anakin! I have the high ground!"
-    
+
     RSA_key_pair = RSA.generate(2048)
     RSA_pub_key = RSA_key_pair.publickey()
-    
+
     ciphertext1 = encrypt_with_RSA(plaintext1, RSA_pub_key)
     ciphertext2 = encrypt_with_RSA(plaintext2, RSA_pub_key)
 
@@ -258,11 +299,11 @@ def main():
 
     print(len(ciphertext1))
     print(len(ciphertext2))
-    
+
 
     print(parse_cmd_line("jhs myfile.txt"))
     print(parse_cmd_line("upl myfile.txt"))
-        
+
 
 if (__name__ == "__main__"):
     main()
