@@ -40,10 +40,10 @@ def decrypt_file(filename, auth_tag, bytestring):
 	"""
 	received_nonce = bytestring[:16]
 	ciphertext = bytestring[16:]
-	cipher = AES.new(get_aes_key(), AES.MODE_GCM, received_nonce)
+	cipher = AES.new(my_privaeskey, AES.MODE_GCM, received_nonce)
 	plaintext = cipher.decrypt_and_verify(ciphertext, auth_tag)
 	f = open(filename, 'w')
-	f.write(plaintext)
+	f.write(plaintext.decode('ascii'))
 
 def send_oos_msg(seq_num=-1):
 	"""Sends and OOS message to the server.
@@ -80,7 +80,7 @@ def process_cmd(cmd, add_info, auth_tag, file):
 	elif cmd == 'REP':
 		if file != b'' and auth_tag != b'':
 			decrypt_file(add_info, auth_tag, file)
-			print('Saved file ' + add_info + ' to your local drive.')
+			print('Saved file ' + add_info.decode('ascii') + ' to your local drive.')
 		else:
 			print('Response: ', add_info)
 	elif cmd == 'ERR':
