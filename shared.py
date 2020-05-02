@@ -33,7 +33,7 @@ def encrypt_with_RSA(plaintext, pub_key):
 #       Raises ValueError if the ciphertext has the wrong length or if decryption fails the integrity check.
 #       Raises TypeError if the RSA key has no private half (i.e. you are trying to decrypt using a pub key)
 # NOTE: You should call load_RSA_key with the RSA keypair file and pass its result as the second parameter
-def decrypt_with_RSA(ciphertext, key_pair):
+def decrypt_with_RSA(ciphertext, keypair):
     cipher = PKCS1_OAEP.new(keypair)
     try:
         return cipher.decrypt(ciphertext)
@@ -130,8 +130,8 @@ def parse_received_msg(msg):
     sig = rest_of_msg[-64:]
     rest_of_msg = rest_of_msg[:-64]
 
-    auth_tag = ''
-    this_file = ''
+    auth_tag = b''
+    this_file = b''
 
     # rest_of_msg is the empty string, there was no file
     if (len(rest_of_msg) > 0):
