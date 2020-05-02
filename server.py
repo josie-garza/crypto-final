@@ -84,7 +84,7 @@ def process_command(code, add_info='', file=b''):
                 send_error_msg('unable to remove directory - not empty')
                 print("RMD - directory not empty error")
     elif code == 'GWD':
-        send('REP', current_dir)
+        send('REP', 'home/' + current_dir)
         print("GWD response sent")
     elif code == 'CWD':
         directories = add_info.split('/')
