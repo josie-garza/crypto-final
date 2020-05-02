@@ -224,45 +224,40 @@ print('Server waiting to receive messages...')
 # main loop
 while True:  # TODO: debug
     status, enc_msg = netif.receive_msg(blocking=True)  # when returns, status is True and msg contains a message
-    if current_user == '':
-        # login case
-        print("Attempting login")
-        directories = os.listdir(SERV_DIR + 'keys/')
-        directories.remove('server')
-        for dir in directories:
-            # try all keys
-            key = load_RSA_key(SERV_DIR + 'keys/' + dir + '/pubsig.pem')
-            if verify_signature(enc_msg, key):
-                print("Correct key found")
-                dec_msg = decrypt_with_RSA(enc_msg, key)
-                _, current_user, _ = parse_cmd_line(dec_msg)
-                client_pubenckey = load_RSA_key(SERV_DIR + 'keys/' + dir + '/pubenc.pem')
-                client_pubsigkey = key
-                user_dir = SERV_DIR + current_user + '/'
-                local_seq_num = 0
-                from_client_seq_num = 0
-                suc_msg = construct_msg(version, local_seq_num, 'SCS', client_pubenckey, my_privsigkey)
-                local_seq_num += 1
-                netif.send_msg(USER_ADDR, suc_msg)
-                print("User " + current_user + " logged in")
+    received_version, payload, auth_tag, received_file, _ = parse_received_msg(enc_msg)
+    if version != received_version:
+        send_error_msg('wrong version number')
+        print("Wrong version number received")
     else:
-        # normal case
-        # verify signature
-        if verify_signature(enc_msg, client_pubsigkey):
-            # verify version number
-            received_version = int.from_bytes(enc_msg[:2], byteorder='little')
-            if version == received_version:
-                dec_msg = decrypt_with_RSA(enc_msg[:263], my_privenckey)
+        if current_user == '':
+            # login case
+            print("Attempting login")
+            directories = os.listdir(SERV_DIR + 'keys/')
+            directories.remove('server')
+            for key_dir in directories:
+                # try all keys
+                key = load_RSA_key(SERV_DIR + 'keys/' + key_dir + '/pubsig.pem')
+                if verify_signature(enc_msg, key):
+                    client_pubenckey = load_RSA_key(SERV_DIR + 'keys/' + key_dir + '/pubenc.pem')
+                    client_pubsigkey = key
+                    print("Correct key found")
+                    dec_msg = decrypt_with_RSA(payload, my_privenckey)
+                    _, current_user, _ = parse_cmd_line(dec_msg)
+                    user_dir = SERV_DIR + current_user + '/'
+                    local_seq_num = 0
+                    from_client_seq_num = 0
+                    send('SCS')
+                    print("User " + current_user + " logged in")
+        else:
+            # normal case
+            # verify signature
+            if verify_signature(enc_msg, client_pubsigkey):
+                dec_msg = decrypt_with_RSA(payload, my_privenckey)
                 # check sequence number
                 received_seq_num = int.from_bytes(dec_msg[:2], byteorder='big')
                 if received_seq_num == from_client_seq_num + 1:
-                    cmd = dec_msg[2:5].decode('utf-8')
-                    parameter = dec_msg[5:261].decode('utf-8')
-                    if len(dec_msg) > 261:
-                        rec_file = dec_msg[261:]
-                    else:
-                        rec_file = ''
-                    process_command(cmd, parameter, rec_file)
+                    cmd, parameter = parse_cmd_line(dec_msg[2:])
+                    process_command(cmd, parameter, received_file)
                 elif received_seq_num <= from_client_seq_num:
                     send_error_msg(seq_num=-2)
                     print("Sequence number too low - OOS returned")
@@ -270,8 +265,6 @@ while True:  # TODO: debug
                     send_error_msg(seq_num=received_seq_num)
                     print("Sequence number too high - OOS returned")
             else:
-                send_error_msg('wrong version number')
-        else:
-            send_error_msg('signature failed')
-            print("Message received but signature verification failed (SIG returned)")
+                send_error_msg('signature failed')
+                print("Message received but signature verification failed (SIG returned)")
 
