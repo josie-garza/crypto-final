@@ -22,7 +22,6 @@ local_seq_num = 0
 version = 0
 current_user = ''
 
-
 # ------------
 # definitions
 # ------------
@@ -46,17 +45,15 @@ current_user = ''
 
 def logout():
     """Resets all user login info."""
-    global local_seq_num, from_client_seq_num, client_pubenckey, client_pubsigkey, current_user, current_dir
+    global local_seq_num, from_client_seq_num, client_pubenckey, client_pubsigkey, current_user, current_dir, user_dir
     local_seq_num, from_client_seq_num = 0, 0
     client_pubenckey, client_pubsigkey, current_user, current_dir, user_dir = '', '', '', '', ''
 
 
-def process_command(code_b, add_info='', file=b''):
+def process_command(code, add_info='', file=b''):
     """Executes a received command."""
     global current_dir, from_client_seq_num
-    code = code_b.decode('ascii')
-    add_info = add_info.decode('ascii')
-    if code_b in ['MKD', 'RMD', 'UPL', 'DNL', 'RMF'] and '..' in add_info:
+    if code in ['MKD', 'RMD', 'UPL', 'DNL', 'RMF'] and '..' in add_info:
         send_error_msg('Use CWD with .. before executing this command.')
         print(".. used in inappropriate message")
     elif code == 'MKD':
@@ -90,14 +87,16 @@ def process_command(code_b, add_info='', file=b''):
         send('REP', current_dir)
         print("GWD response sent")
     elif code == 'CWD':
-        directs = add_info.split('/')
-        current_dir = change_dir(directs, current_dir)
+        directories = add_info.split('/')
+        current_dir = change_dir(directories, current_dir)
         send('REP', 'Changed current directory to ' + current_dir)
         print("CWD success - directory changed")
     elif code == 'LST':  # TODO: is it an issue that this will break for long lists?
-        directs = os.listdir(user_dir + current_dir)
-        output = ', '.join(directs)
-        send('REP', output.encode('utf-8'))
+        directories = os.listdir(user_dir + current_dir)
+        for d in directories:
+            send('REP', d)
+        # output = ', '.join(directories)
+        # send('REP', output)
         print("LST response sent")
     elif code == 'UPL':
         if add_info == '':
@@ -119,10 +118,9 @@ def process_command(code_b, add_info='', file=b''):
             send_error_msg('file with this name not found')
             print("DNL no file with given name error sent")
         else:
-            f = open(user_dir + current_dir + add_info, 'rb')
-            file_contents = f.read()
-            f.close()
-            send('REP', add_info.encode('utf-8'), file_contents)
+            with open(user_dir + current_dir + add_info, 'rb') as f:
+                file_contents = f.read()
+            send('REP', add_info, file_contents)
             print("DNL response sent")
     elif code == 'RMF':
         if add_info == '':
@@ -184,12 +182,10 @@ def send_error_msg(specification='', seq_num=-1):
     To have a blank OOS command, use seq_num=-2, otherwise seq_num will be added to parameter field.
     """
     if seq_num == -1:
-        spec_bytes = specification.encode('utf-8')
-        send('ERR', spec_bytes)
+        send('ERR', specification)
     elif seq_num == -2:
         send('OOS')
     else:
-        seq_num_byte = seq_num.to_bytes(length=185, byteorder='big')
         send('OOS', str(seq_num))
 
 
@@ -197,19 +193,29 @@ def send(code, param='', dnl_file=b''):
     global local_seq_num
     if dnl_file != b'':
         authentication = dnl_file[-16:]
+        dnl_file = dnl_file[:-16]
     else:
         authentication = b''
-    new_msg = construct_msg(version, local_seq_num, code, client_pubenckey, my_privsigkey, add_info=param,
-                            enc_file=dnl_file, file_auth=authentication)
+    # new_msg = construct_msg(version, local_seq_num, code, client_pubenckey, my_privsigkey, add_info=param,
+    #                         enc_file=dnl_file, file_auth=authentication)
     local_seq_num += 1
-    netif.send_msg(USER_ADDR, new_msg)
-    print('Sent message to client....')
-#print(str(version) + str(local_seq_num) + code + str(param) + str(dnl_file) + str(authentication))
+    # netif.send_msg(SER_ADDR, new_msg)
+    # print('Sent message to client....')
+    print(str(version) + str(local_seq_num) + code + str(param) + str(dnl_file) + str(authentication))
 
 
 # ------------
 # main program
 # ------------
+
+"""TEST CODE
+netif = network_interface(NET_PATH, OWN_ADDR)
+user_dir = SERV_DIR + 'user1/'
+current_dir = ''
+process_command('UPL', add_info='new_file.txt', file=b'this is a test1234567890123456')
+process_command('LST')
+process_command('DNL', add_info='new_file.txt')
+"""
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], shortopts='hp:a:', longopts=['help', 'path=', 'addr='])
@@ -237,9 +243,9 @@ while True:  # TODO: debug
     else:
         if current_user == '':
             print("Attempting login")
-            directories = os.listdir(SERV_DIR + 'keys/')
-            directories.remove('server')
-            for key_dir in directories:
+            directs = os.listdir(SERV_DIR + 'keys/')
+            directs.remove('server')
+            for key_dir in directs:
                 # try all keys
                 key = load_ECC_key(SERV_DIR + 'keys/' + key_dir + '/pubsig.pem')
                 if verify_signature(enc_msg, key):
@@ -247,7 +253,6 @@ while True:  # TODO: debug
                     client_pubsigkey = key
                     print("Correct key found")
                     dec_msg = decrypt_with_RSA(payload, my_privenckey)
-                    #_, current_user, _ = parse_cmd_line(dec_msg)
                     current_user = dec_msg[5:190]
                     current_user = current_user.decode('ascii')
                     user_dir = SERV_DIR + current_user + '/'
@@ -262,13 +267,14 @@ while True:  # TODO: debug
                 dec_msg = decrypt_with_RSA(payload, my_privenckey)
                 # check sequence number
                 received_seq_num = int.from_bytes(dec_msg[:2], byteorder='big')
-                print(received_seq_num)
-                print(from_client_seq_num)
+                print("received_seq_num: " + str(received_seq_num))
+                print("from_client_seq_num " + str(from_client_seq_num))
                 if received_seq_num == from_client_seq_num + 1:
-                    #cmd, parameter = parse_cmd_line(dec_msg[2:])
-                    cmd = dec_msg[2:5]
-                    parameter = dec_msg[5:190]
-                    process_command(cmd, parameter, received_file)
+                    cmd_b = dec_msg[2:5]
+                    cmd = cmd_b.decode('ascii')
+                    parameter_b = dec_msg[5:190]
+                    parameter = parameter_b.decode('ascii')
+                    process_command(cmd, parameter, received_file + auth_tag)
                 elif received_seq_num <= from_client_seq_num:
                     send_error_msg(seq_num=-2)
                     print("Sequence number too low - OOS returned")
