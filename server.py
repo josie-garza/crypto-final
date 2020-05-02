@@ -196,11 +196,11 @@ def send(code, param='', dnl_file=b''):
         dnl_file = dnl_file[:-16]
     else:
         authentication = b''
-    # new_msg = construct_msg(version, local_seq_num, code, client_pubenckey, my_privsigkey, add_info=param,
-    #                         enc_file=dnl_file, file_auth=authentication)
+    new_msg = construct_msg(version, local_seq_num, code, client_pubenckey, my_privsigkey, add_info=param,
+                            enc_file=dnl_file, file_auth=authentication)
     local_seq_num += 1
-    # netif.send_msg(SER_ADDR, new_msg)
-    # print('Sent message to client....')
+    netif.send_msg(USER_ADDR, new_msg)
+    print('Sent message to client....')
     print(str(version) + str(local_seq_num) + code + str(param) + str(dnl_file) + str(authentication))
 
 
