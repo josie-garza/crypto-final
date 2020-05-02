@@ -52,8 +52,6 @@ def logout():
 
 
 def process_command(code, add_info='', file=b''):
-    # TODO: debug
-    # TODO: replace current file reading with 'with'
     """Executes a received command."""
     global current_dir, from_client_seq_num
     if code in ['MKD', 'RMD', 'UPL', 'DNL', 'RMF'] and '..' in add_info:
