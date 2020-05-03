@@ -88,9 +88,10 @@ def process_command(code, add_info='', file=b''):
         print("GWD response sent")
     elif code == 'CWD':
         directories = add_info.split('/')
-        current_dir = change_dir(directories, current_dir)
-        send('REP', 'Changed current directory to ' + current_dir)
-        print("CWD success - directory changed")
+        current_dir, success = change_dir(directories, current_dir)
+        if success:
+            send('REP', 'Changed current directory to home/' + current_dir)
+            print("CWD success - directory changed")
     elif code == 'LST':  # TODO: is it an issue that this will break for long lists?
         directories = os.listdir(user_dir + current_dir)
         for d in directories:
@@ -158,7 +159,7 @@ def process_command(code, add_info='', file=b''):
     from_client_seq_num += 1
 
 
-def change_dir(directories, old_dir):  # TODO: debug
+def change_dir(directories, old_dir):
     """Returns the newly changed directory, or the old one if an error is encountered.
 
     change -- a list of the directories in the command (e.g. ['..', 'dir'] )
@@ -168,16 +169,22 @@ def change_dir(directories, old_dir):  # TODO: debug
         if directories[0] == '..':
             if new_dir == '' or new_dir == '/':
                 send_error_msg('at topmost directory')
-                return current_dir
+                return current_dir, False
             else:
                 path = new_dir.split('/')
                 del path[-2]
                 new_dir = '/'.join(path)
                 del directories[0]
         else:
-            new_dir = new_dir + directories[0] + '/'
-            del directories[0]
-    return new_dir
+            actual_dirs = os.listdir(user_dir + current_dir)
+            if directories[0] not in actual_dirs:
+                send_error_msg('directory does not exist')
+                print("CWD - directory does not exist error")
+                return old_dir, False
+            else:
+                new_dir = new_dir + directories[0] + '/'
+                del directories[0]
+    return new_dir, True
 
 
 def send_error_msg(specification='', seq_num=-1):
@@ -254,7 +261,6 @@ while True:  # TODO: debug
             for key_dir in directs:
                 # try all keys
                 key = load_ECC_key(SERV_DIR + 'keys/' + key_dir + '/pubsig.pem')
-                print("trying key: " + str(key)) # TODO DEBUGGING CODE
                 if verify_signature(enc_msg, key):
                     client_pubenckey = load_RSA_key(SERV_DIR + 'keys/' + key_dir + '/pubenc.pem')
                     client_pubsigkey = key
