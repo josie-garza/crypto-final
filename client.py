@@ -17,6 +17,7 @@ server_pubsigkey = load_ECC_key('./server/keys/server/pubsig.pem')
 from_server_seq_num = -1
 local_seq_num = 0
 waiting = False
+start = time.time()
 
 def get_aes_key(filename):
 	with open(filename, 'rt') as sf:
@@ -58,8 +59,6 @@ def send_oos_msg(seq_num=-1):
 	netif.send_msg(SERVER_ADDR, msg)
 
 def handle_seq_num(received_seq_num):
-	print(received_seq_num)
-	print(from_server_seq_num)
 	if received_seq_num == from_server_seq_num + 1:
 		return 1
 	elif received_seq_num <= from_server_seq_num:
@@ -72,31 +71,32 @@ def handle_seq_num(received_seq_num):
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
-	global waiting
+	global waiting, start
+	waiting = False
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
 		local_seq_num = 0
-		waiting = False
 		print('Login success.')
 	elif cmd == 'SUC':
-		waiting = False
 		print("Success messaged received.")
 	elif cmd == 'REP':
 		if file != b'' and auth_tag != b'':
 			decrypt_file(add_info, auth_tag, file)
 			print('Saved file ' + add_info.decode('ascii') + ' to your local drive.')
 		else:
-			print('Response: ', add_info)
+			print(add_info.decode('ascii'))
+	elif cmd == 'RES':
+		waiting = True
+		start = time.time()
+		print(add_info.decode('ascii'))
 	elif cmd == 'ERR':
 		print('Error message received - ', add_info)
-		waiting = False
 	elif cmd == 'OOS':
 		if add_info != '':
 			from_server_seq_num = int(add_info)
 			print('OOS - expected client sequence number set to ' + str(from_server_seq_num))
 		else:
 			print('OOS without sequence number changed received.')
-		waiting = False
 	else:
 		print('Recieved an unknown command.')
 
@@ -115,8 +115,6 @@ def process_msg(rcv):
 netif = network_interface(NET_PATH, OWN_ADDR)
 while True:
 	cmd_line = input('Type a command: ')
-	if cmd_line == 'quit':
-		sys.exit()
 	parsed = parse_cmd_line(cmd_line)
 	if parsed == None:
 		print('Malformatted command line. Check the command.')
@@ -144,8 +142,13 @@ while True:
 			local_seq_num += 1
 			netif.send_msg(SERVER_ADDR, msg)
 			waiting = True
-			print('Sent message to server...')
+			start = time.time()
 		while waiting:
-			status, rcv = netif.receive_msg(blocking=True)
-			print('Received a message....')
-			process_msg(rcv)
+			status, rcv = netif.receive_msg(blocking = False)
+			if (time.time() - start > 2):
+				print('Took too long to receive a response.')
+				print('Something went wrong.')
+				print('Shutting down...')
+				sys.exit()
+			if (status):
+				process_msg(rcv)
