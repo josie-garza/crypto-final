@@ -63,11 +63,11 @@ def handle_seq_num(received_seq_num):
 		return 1
 	elif received_seq_num <= from_server_seq_num:
 		send_oos_msg(seq_num=-2)
-		print("Sequence number too low - OOS returned")
+		print("Sequence number too low - sent OOS")
 		return -1
 	else:
 		send_oos_msg(seq_num=received_seq_num)
-		print("Sequence number too high - OOS returned")
+		print("Sequence number too high - sent OOS")
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
@@ -145,7 +145,7 @@ while True:
 			start = time.time()
 		while waiting:
 			status, rcv = netif.receive_msg(blocking = False)
-			if (time.time() - start > 2):
+			if (time.time() - start > 3):
 				print('Took too long to receive a response.')
 				print('Something went wrong.')
 				print('Shutting down...')
