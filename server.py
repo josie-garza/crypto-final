@@ -86,10 +86,12 @@ def process_command(code, add_info='', file=b''):
     elif code == 'GWD':
         send('REP', 'home/' + current_dir)
         print("GWD response sent")
+        send('SUC')
     elif code == 'CWD':
         directories = add_info.split('/')
         current_dir = change_dir(directories, current_dir)
         send('REP', 'Changed current directory to ' + current_dir)
+        send('SUC')
         print("CWD success - directory changed")
     elif code == 'LST':  # TODO: is it an issue that this will break for long lists?
         directories = os.listdir(user_dir + current_dir)
@@ -97,6 +99,7 @@ def process_command(code, add_info='', file=b''):
             send('REP', d)
         # output = ', '.join(directories)
         # send('REP', output)
+        send('SUC')
         print("LST response sent")
     elif code == 'UPL':
         if add_info == '':
@@ -123,6 +126,7 @@ def process_command(code, add_info='', file=b''):
                 with open(user_dir + current_dir + add_info, 'rb') as f:
                     file_contents = f.read()
                 send('REP', add_info, file_contents)
+                send('SUC')
                 print("DNL response sent")
             except FileNotFoundError:
                 send_error_msg('file not found')

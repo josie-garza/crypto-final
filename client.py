@@ -16,6 +16,7 @@ server_pubenckey = load_RSA_key('./server/keys/server/pubenc.pem')
 server_pubsigkey = load_ECC_key('./server/keys/server/pubsig.pem')
 from_server_seq_num = -1
 local_seq_num = 0
+waiting = False
 
 def get_aes_key(filename):
 	with open(filename, 'rt') as sf:
@@ -71,11 +72,14 @@ def handle_seq_num(received_seq_num):
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
+	global waiting
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
 		local_seq_num = 0
+		waiting = False
 		print('Login success.')
 	elif cmd == 'SUC':
+		waiting = False
 		print("Success messaged received.")
 	elif cmd == 'REP':
 		if file != b'' and auth_tag != b'':
@@ -85,12 +89,14 @@ def process_cmd(cmd, add_info, auth_tag, file):
 			print('Response: ', add_info)
 	elif cmd == 'ERR':
 		print('Error message received - ', add_info)
+		waiting = False
 	elif cmd == 'OOS':
 		if add_info != '':
 			from_server_seq_num = int(add_info)
 			print('OOS - expected client sequence number set to ' + str(from_server_seq_num))
 		else:
 			print('OOS without sequence number changed received.')
+		waiting = False
 	else:
 		print('Recieved an unknown command.')
 
@@ -122,16 +128,24 @@ while True:
 					if parsed[1] != MY_DIR:
 						print('You did not send the right user ID with the login.')
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
-				if cmd == 'UPL':
+				elif cmd == 'UPL':
 					auth_tag, enc_file = encrypt_file(parsed[1])
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1], enc_file, auth_tag)
 				else:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
 			else:
-				msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
+				if cmd == 'LGO':
+					print('Logging out.')
+					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
+					netif.send_msg(SERVER_ADDR, msg)
+					sys.exit()
+				else:
+					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
 			local_seq_num += 1
 			netif.send_msg(SERVER_ADDR, msg)
+			waiting = True
 			print('Sent message to server...')
-		status, rcv = netif.receive_msg(blocking=True)
-		print('Received a message....')
-		process_msg(rcv)
+		while waiting:
+			status, rcv = netif.receive_msg(blocking=True)
+			print('Received a message....')
+			process_msg(rcv)
