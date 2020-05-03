@@ -76,7 +76,7 @@ def process_cmd(cmd, add_info, auth_tag, file):
 		local_seq_num = 0
 		print('Login success.')
 	elif cmd == 'SUC':
-		print("Success messaged received.")
+		pass
 	elif cmd == 'REP':
 		if file != b'' and auth_tag != b'':
 			decrypt_file(add_info, auth_tag, file)
