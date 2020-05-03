@@ -143,14 +143,15 @@ def parse_received_msg(msg):
     return [ver, enc_payload, auth_tag, this_file, sig]
 
 
-# IN: ver (bytestrign), seq_num (bytestring), cmd (bytestring), recipient_pub_RSA_key (RSA type),
-#     sender_priv_ECC_key (ECC type), add_info (bytestring, optional), enc_file (bytestring, optional),
+# IN: ver (integer), seq_num (integer), cmd (string), recipient_pub_RSA_key (RSA type),
+#     sender_priv_ECC_key (ECC type), add_info (string, optional), enc_file (bytestring, optional),
 #     file_auth (bytestring, optional)
 # OUT: the resulting message (bytestring)
 # DESC: Takes all of the relevant information necessary for constructing a message, encrypts the payload,
 #      digitally signs the important information, and smashes it all together
 def construct_msg(ver, seq_num, cmd, recipient_pub_RSA_key, sender_priv_ECC_key,
                   add_info='', enc_file=b'', file_auth=b''):
+    
     # converting inputs into bytes
     ver = ver.to_bytes(length=2, byteorder='big')
     seq_num = seq_num.to_bytes(length=2, byteorder='big')
@@ -168,6 +169,7 @@ def construct_msg(ver, seq_num, cmd, recipient_pub_RSA_key, sender_priv_ECC_key,
     my_msg += sig
 
     return my_msg
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -224,6 +226,10 @@ def load_ECC_key(keyfile):
         print('ValueError: Cannot import ECC key from file ' + keyfile)
         sys.exit(1)
 
+
+# IN: N/A
+# OUT: N/A
+# DESC: Generates ECC & RSA keypairs for both the client
 def generateTestingKeys():
     print('Generating a new 2048-bit RSA key pair for client...')
     keypair = RSA.generate(2048)
@@ -251,59 +257,3 @@ def generateTestingKeys():
     save_ECC_key(ECC_priv_key, './server/keys/server/privsig.pem')
     print('Done')
 
-# This is solely for testing purposes and will be removed before finalization
-def main():
-    # Basic signature generation and verification testing:
-    #generateTestingKeys()
-    my_msg_first = b'Hello, my name is Jack'
-    my_msg_second = b'hehehe'
-
-    ECC_priv_key = ECC.generate(curve='P-256')
-    ECC_pub_key = ECC_priv_key.public_key()
-
-    my_sig_first = gen_signature(ECC_priv_key, my_msg_first)
-    my_sig_second = gen_signature(ECC_priv_key, my_msg_second)
-
-    print("my_msg_first and my_sig_first: ", end="")
-    if verify_signature_helper(my_sig_first, my_msg_first, ECC_pub_key):
-        print("True")
-    else:
-        print("False")
-
-    print("my_msg_second and my_sig_first: ", end="")
-    if verify_signature_helper(my_sig_first, my_msg_second, ECC_pub_key):
-        print("True")
-    else:
-        print("False")
-
-
-    # Basic encryption and decryption testing:
-    plaintext1 = b"Hello there!"
-    plaintext2 = b"It's over Anakin! I have the high ground!"
-
-    RSA_key_pair = RSA.generate(2048)
-    RSA_pub_key = RSA_key_pair.publickey()
-
-    ciphertext1 = encrypt_with_RSA(plaintext1, RSA_pub_key)
-    ciphertext2 = encrypt_with_RSA(plaintext2, RSA_pub_key)
-
-    print("plaintext1: ", end="")
-    print(plaintext1)
-    print("ciphertext1: ", end="")
-    print(ciphertext1)
-
-    print("plaintext2: ", end="")
-    print(plaintext2)
-    print("ciphertext2: ", end="")
-    print(ciphertext2)
-
-    print(len(ciphertext1))
-    print(len(ciphertext2))
-
-
-    print(parse_cmd_line("jhs myfile.txt"))
-    print(parse_cmd_line("upl myfile.txt"))
-
-
-if (__name__ == "__main__"):
-    main()
