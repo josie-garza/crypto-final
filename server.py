@@ -106,22 +106,27 @@ def process_command(code, add_info='', file=b''):
             send_error_msg('no file given')
             print("UPL no file given error sent")
         else:
-            with open(user_dir + current_dir + add_info, 'wb') as f:
-                f.write(file)
-            send('SUC')
-            print("UPL success sent")
+            try:
+                with open(user_dir + current_dir + add_info, 'wb') as f:
+                    f.write(file)
+                send('SUC')
+                print("UPL success sent")
+            except FileNotFoundError:
+                send_error_msg('path not found')
+                print("UPL - path not found error")
     elif code == 'DNL':
         if add_info == '':
             send_error_msg('no file name given')
             print("DNL no file name given error sent")
-        elif add_info not in os.listdir(user_dir + current_dir):
-            send_error_msg('file with this name not found')
-            print("DNL no file with given name error sent")
         else:
-            with open(user_dir + current_dir + add_info, 'rb') as f:
-                file_contents = f.read()
-            send('REP', add_info, file_contents)
-            print("DNL response sent")
+            try:
+                with open(user_dir + current_dir + add_info, 'rb') as f:
+                    file_contents = f.read()
+                send('REP', add_info, file_contents)
+                print("DNL response sent")
+            except FileNotFoundError:
+                send_error_msg('file not found')
+                print("DNL - file not found error")
     elif code == 'RMF':
         if add_info == '':
             send_error_msg('no file name given')
