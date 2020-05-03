@@ -230,30 +230,30 @@ def load_ECC_key(keyfile):
 # IN: N/A
 # OUT: N/A
 # DESC: Generates ECC & RSA keypairs for both the client
-def generateTestingKeys():
+def generateTestingKeys(directory):
     print('Generating a new 2048-bit RSA key pair for client...')
     keypair = RSA.generate(2048)
-    save_RSA_key(keypair.publickey(), './server/keys/789/pubenc.pem')
-    save_RSA_key(keypair, 'privenc.pem')
+    save_RSA_key(keypair.publickey(), './' + directory + '/pubenc.pem')
+    save_RSA_key(keypair, './' + directory + '/privenc.pem')
     print('Done')
 
-    print('Generating a new 2048-bit RSA key pair for server...')
-    keypair = RSA.generate(2048)
-    save_RSA_key(keypair.publickey(), './server/keys/server/pubenc.pem')
-    save_RSA_key(keypair, './server/keys/server/privenc.pem')
-    print('Done')
+    # print('Generating a new 2048-bit RSA key pair for server...')
+    # keypair = RSA.generate(2048)
+    # save_RSA_key(keypair.publickey(), './server/keys/server/pubenc.pem')
+    # save_RSA_key(keypair, './server/keys/server/privenc.pem')
+    # print('Done')
 
     print('Generating a new 2048-bit ECC key pair for client...')
     ECC_priv_key = ECC.generate(curve='P-256')
     publickey = ECC_priv_key.public_key()
-    save_ECC_key(publickey, './server/keys/789/pubsig.pem')
-    save_ECC_key(ECC_priv_key, 'privsig.pem')
+    save_ECC_key(publickey, './' + directory + '/pubsig.pem')
+    save_ECC_key(ECC_priv_key, './' + directory + '/privsig.pem')
     print('Done')
 
-    print('Generating a new 2048-bit ECC key pair for server...')
-    ECC_priv_key = ECC.generate(curve='P-256')
-    publickey = ECC_priv_key.public_key()
-    save_ECC_key(publickey, './server/keys/server/pubsig.pem')
-    save_ECC_key(ECC_priv_key, './server/keys/server/privsig.pem')
-    print('Done')
+    # print('Generating a new 2048-bit ECC key pair for server...')
+    # ECC_priv_key = ECC.generate(curve='P-256')
+    # publickey = ECC_priv_key.public_key()
+    # save_ECC_key(publickey, './server/keys/server/pubsig.pem')
+    # save_ECC_key(ECC_priv_key, './server/keys/server/privsig.pem')
+    # print('Done')
 

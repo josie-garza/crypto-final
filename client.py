@@ -7,11 +7,11 @@ from Crypto.Cipher import AES
 NET_PATH = './network/'
 OWN_ADDR = 'B'
 SERVER_ADDR='A'
-MY_DIR = '789'
-my_pubenckey = load_RSA_key('./server/keys/' + MY_DIR + '/pubenc.pem')
-my_pubsigkey = load_ECC_key('./server/keys/' + MY_DIR + '/pubsig.pem')
-my_privenckey = load_RSA_key('privenc.pem')
-my_privsigkey = load_ECC_key('privsig.pem')
+MY_DIR = sys.argv[1]
+my_pubenckey = load_RSA_key(MY_DIR + '/pubenc.pem')
+my_pubsigkey = load_ECC_key(MY_DIR + '/pubsig.pem')
+my_privenckey = load_RSA_key(MY_DIR + '/privenc.pem')
+my_privsigkey = load_ECC_key(MY_DIR + '/privsig.pem')
 server_pubenckey = load_RSA_key('./server/keys/server/pubenc.pem')
 server_pubsigkey = load_ECC_key('./server/keys/server/pubsig.pem')
 from_server_seq_num = -1

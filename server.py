@@ -257,18 +257,26 @@ while True:  # TODO: debug
             for key_dir in directs:
                 # try all keys
                 key = load_ECC_key(SERV_DIR + 'keys/' + key_dir + '/pubsig.pem')
+                print("trying key: " + str(key)) # TODO DEBUGGING CODE
                 if verify_signature(enc_msg, key):
                     client_pubenckey = load_RSA_key(SERV_DIR + 'keys/' + key_dir + '/pubenc.pem')
                     client_pubsigkey = key
                     print("Correct key found")
                     dec_msg = decrypt_with_RSA(payload, my_privenckey)
-                    current_user = dec_msg[5:190]
-                    current_user = current_user.decode('ascii')
-                    user_dir = SERV_DIR + current_user + '/'
-                    local_seq_num = 0
-                    from_client_seq_num = 0
-                    send('SCS')
-                    print("User " + current_user + " logged in")
+                    cmd = dec_msg[2:5].decode('ascii')
+                    if cmd != 'LGN':
+                        print("wrong login command")
+                    else:
+                        param_user = dec_msg[5:190].decode('ascii')
+                        if param_user != key_dir:
+                            print("wrong user specified")
+                        else:
+                            current_user = param_user
+                            user_dir = SERV_DIR + current_user + '/'
+                            local_seq_num = 0
+                            from_client_seq_num = 0
+                            send('SCS')
+                            print("User " + current_user + " logged in")
         else:
             # normal case
             # verify signature
