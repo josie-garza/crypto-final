@@ -95,7 +95,7 @@ def process_cmd(cmd, add_info, auth_tag, file):
 		print('Error message received - ', add_info)
 	elif cmd == 'RLO':
 		print('Logged out.')
-		from_server_seq_num = -2
+		from_server_seq_num = -1
 		local_seq_num = 1
 	elif cmd == 'OOS':
 		if add_info != '':
@@ -115,8 +115,8 @@ def process_msg(rcv):
 		if handle_seq_num(received_seq_num) > 0:
 			cmd = msg[2:5]
 			add_info = msg[5:190]
-			process_cmd(cmd, add_info, auth_tag, file)
 			from_server_seq_num += 1
+			process_cmd(cmd, add_info, auth_tag, file)
 
 netif = network_interface(NET_PATH, OWN_ADDR)
 while True:
