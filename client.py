@@ -13,7 +13,7 @@ my_privsigkey = load_ECC_key(MY_DIR + '/privsig.pem')
 server_pubenckey = load_RSA_key(MY_DIR + '/keys/server/pubenc.pem')
 server_pubsigkey = load_ECC_key(MY_DIR + '/keys/server/pubsig.pem')
 from_server_seq_num = -1
-local_seq_num = 0
+local_seq_num = 1
 waiting = False
 start = time.time()
 
@@ -73,11 +73,11 @@ def handle_seq_num(received_seq_num):
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
-	global waiting, start
+	global waiting, start, from_server_seq_num, local_seq_num
 	waiting = False
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
-		local_seq_num = 0
+		local_seq_num = 1
 		print('Login success.')
 	elif cmd == 'SUC':
 		pass
@@ -93,9 +93,13 @@ def process_cmd(cmd, add_info, auth_tag, file):
 		print(add_info.decode('ascii'))
 	elif cmd == 'ERR':
 		print('Error message received - ', add_info)
+	elif cmd == 'RLO':
+		print('Logged out.')
+		from_server_seq_num = -2
+		local_seq_num = 1
 	elif cmd == 'OOS':
 		if add_info != '':
-			from_server_seq_num = int(add_info)
+			from_server_seq_num = int.from_bytes(add_info, byteorder='big')
 			print('OOS - expected client sequence number set to ' + str(from_server_seq_num))
 		else:
 			print('OOS without sequence number changed received.')
@@ -139,16 +143,12 @@ while True:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
 			else:
 				if cmd == 'LGO':
-					print('Logging out.')
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
-					netif.send_msg(SERVER_ADDR, msg)
-					sys.exit()
 				else:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
 			if msg != None:
 				local_seq_num += 1
 				netif.send_msg(SERVER_ADDR, msg)
-				print('send message')
 				waiting = True
 				start = time.time()
 		while waiting:

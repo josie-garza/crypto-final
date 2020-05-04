@@ -28,6 +28,7 @@ current_user = ''
 def logout():
     """Resets all user login info."""
     global local_seq_num, from_client_seq_num, client_pubenckey, client_pubsigkey, current_user, current_dir, user_dir
+    send('RLO', 'Logged out.')
     local_seq_num, from_client_seq_num = 0, 0
     client_pubenckey, client_pubsigkey, current_user, current_dir, user_dir = '', '', '', '', ''
 
@@ -249,7 +250,7 @@ while True:  # TODO: debug
                 # check sequence number
                 received_seq_num = int.from_bytes(dec_msg[:2], byteorder='big')
                 print("received_seq_num: " + str(received_seq_num))
-                print("from_client_seq_num " + str(from_client_seq_num))
+                print("from_client_seq_num " + str(from_client_seq_num + 1))
                 if received_seq_num == from_client_seq_num + 1:
                     cmd_b = dec_msg[2:5]
                     cmd = cmd_b.decode('ascii')
