@@ -25,22 +25,6 @@ current_user = ''
 # ------------
 
 
-# unused
-# def start_session(user_id):
-# 	"""Initializes the session by setting user-depended parameters."""
-# 	global current_user, current_dir, local_seq_num, from_client_seq_num, client_pubenckey, client_pubsigkey
-# 	# set parameters
-# 	current_user = user_id
-# 	local_seq_num, from_client_seq_num = 0, 0
-# 	# get keys
-# 	with open(SERV_DIR + 'keys/' + user_id + '/pubenc.pem') as f:
-# 		client_pubenckey = f.read()
-# 	with open(SERV_DIR + 'keys/' + user_id + '/pubsig.pem') as f:
-# 		client_pubsigkey = f.read()
-# 	# navigate to current user's directory
-# 	current_dir = current_user + '/'
-
-
 def logout():
     """Resets all user login info."""
     global local_seq_num, from_client_seq_num, client_pubenckey, client_pubsigkey, current_user, current_dir, user_dir
@@ -157,7 +141,8 @@ def change_dir(directories, old_dir):
                 new_dir = '/'.join(path)
                 del directories[0]
         else:
-            actual_dirs = filter(os.path.isdir, os.listdir(user_dir + current_dir))
+            lst = os.listdir(user_dir + current_dir)
+            actual_dirs = [name for name in lst if os.path.isdir(user_dir + current_dir + name)]
             if directories[0] not in actual_dirs:
                 send_error_msg('directory does not exist')
                 print("CWD - directory does not exist error")
@@ -201,15 +186,6 @@ def send(code, param='', dnl_file=b''):
 # ------------
 # main program
 # ------------
-
-"""TEST CODE
-netif = network_interface(NET_PATH, OWN_ADDR)
-user_dir = SERV_DIR + 'user1/'
-current_dir = ''
-process_command('UPL', add_info='new_file.txt', file=b'this is a test1234567890123456')
-process_command('LST')
-process_command('DNL', add_info='new_file.txt')
-"""
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], shortopts='hp:a:', longopts=['help', 'path=', 'addr='])
