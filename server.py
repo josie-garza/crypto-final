@@ -37,9 +37,11 @@ def process_command(code, add_info='', file=b''):
     """Executes a received command."""
     global current_dir, from_client_seq_num
     if code in ['MKD', 'RMD', 'UPL', 'DNL', 'RMF'] and '..' in add_info:
+        # ensures that users cannot abuse '..' to access other users directories
         send_error_msg('Use CWD with .. first to operate on outer folder.')
         print(".. used in inappropriate message")
     elif code in ['MKD', 'RMD', 'CWD', 'UPL', 'DNL', 'RMF'] and add_info == '':
+        # makes sure parameters aren't empty
         send_error_msg('no parameter given')
         print("no parameter given error sent")
     elif code == 'MKD':
@@ -52,6 +54,7 @@ def process_command(code, add_info='', file=b''):
             print("MKDIR - unable to make directory error")
     elif code == 'RMD':
         if all([i == '.' for i in add_info.split('/')]):
+            # makes sure user isn't deleting current directory
             send_error_msg('invalid syntax')
             print("RMD - invalid syntax")
         else:
@@ -120,6 +123,7 @@ def process_command(code, add_info='', file=b''):
         logout()
     elif code == 'OOS':
         if add_info != '':
+            # update expected sequence number
             from_client_seq_num = int(add_info)
             print("OOS - expected client sequence number set to " + str(from_client_seq_num))
         else:
@@ -135,6 +139,8 @@ def change_dir(directories, old_dir):
     """Returns the newly changed directory, or the old one if an error is encountered.
 
     change -- a list of the directories in the command (e.g. ['..', 'dir'] )
+
+    Returns boolean success
     """
     new_dir = old_dir
     while len(directories) > 0 and directories[0] != '':
@@ -176,6 +182,7 @@ def send_error_msg(specification='', seq_num=-1):
 
 
 def send(code, param='', dnl_file=b''):
+    """Sends a message to the client."""
     global local_seq_num
     if dnl_file != b'':
         authentication = dnl_file[-16:]
@@ -210,15 +217,18 @@ netif = network_interface(NET_PATH, OWN_ADDR)
 print('Server waiting to receive messages...')
 
 # main loop
-while True:  # TODO: debug
+while True:
+    # receiving message
     status, enc_msg = netif.receive_msg(blocking=True)
     print('Received a message....')
     received_version, payload, auth_tag, received_file, _ = parse_received_msg(enc_msg)
     if version != int.from_bytes(received_version, byteorder='big'):
+        # checking version number
         send_error_msg('wrong version number')
         print("Wrong version number received")
     else:
         if current_user == '':
+            # case in which no one is login - awaiting login command
             print("Attempting login")
             directs = os.listdir(SERV_DIR + 'keys/')
             directs.remove('server')
@@ -226,6 +236,7 @@ while True:  # TODO: debug
                 # try all keys
                 key = load_ECC_key(SERV_DIR + 'keys/' + key_dir + '/pubsig.pem')
                 if verify_signature(enc_msg, key):
+                    # correct key has been found
                     client_pubenckey = load_RSA_key(SERV_DIR + 'keys/' + key_dir + '/pubenc.pem')
                     client_pubsigkey = key
                     print("Correct key found")
@@ -254,6 +265,7 @@ while True:  # TODO: debug
                 print("received_seq_num: " + str(received_seq_num))
                 print("from_client_seq_num " + str(from_client_seq_num + 1))
                 if received_seq_num == from_client_seq_num + 1:
+                    # correct sequence number
                     cmd_b = dec_msg[2:5]
                     cmd = cmd_b.decode('ascii')
                     parameter_b = dec_msg[5:190]
