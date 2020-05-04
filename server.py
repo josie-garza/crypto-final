@@ -102,6 +102,9 @@ def process_command(code, add_info='', file=b''):
         except FileNotFoundError:
             send_error_msg('file not found')
             print("DNL - file not found error")
+        except IsADirectoryError:
+            send_error_msg('cannot download directory')
+            print("DNL - is a directory error")
     elif code == 'RMF':
         try:
             os.remove(user_dir + current_dir + add_info)
