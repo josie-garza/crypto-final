@@ -264,5 +264,5 @@ while True:  # TODO: debug
                     send_error_msg(seq_num=received_seq_num)
                     print("Sequence number too high - OOS returned")
             else:
-                send_error_msg('signature failed')
-                print("Message received but signature verification failed (SIG returned)")
+                send_error_msg('signature failed - potential interference from another network entity')
+                print("Message received but signature verification failed")
