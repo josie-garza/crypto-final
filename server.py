@@ -78,7 +78,6 @@ def process_command(code, add_info='', file=b''):
         directories = os.listdir(user_dir + current_dir)
         for d in directories:
             send('RES', d)
-        send('SUC')
         print("LST response sent")
     elif code == 'UPL':
         if file == '':

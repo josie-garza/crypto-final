@@ -14,7 +14,6 @@ server_pubenckey = load_RSA_key(MY_DIR + '/keys/server/pubenc.pem')
 server_pubsigkey = load_ECC_key(MY_DIR + '/keys/server/pubsig.pem')
 from_server_seq_num = -1
 local_seq_num = 1
-waiting = False
 start = time.time()
 
 def get_aes_key(filename):
@@ -73,8 +72,7 @@ def handle_seq_num(received_seq_num):
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
-	global waiting, start, from_server_seq_num, local_seq_num
-	waiting = False
+	global start, from_server_seq_num, local_seq_num
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
 		local_seq_num = 1
@@ -88,7 +86,6 @@ def process_cmd(cmd, add_info, auth_tag, file):
 		else:
 			print(add_info.decode('ascii'))
 	elif cmd == 'RES':
-		waiting = True
 		start = time.time()
 		print(add_info.decode('ascii'))
 	elif cmd == 'ERR':
@@ -135,9 +132,7 @@ while True:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
 				elif cmd == 'UPL':
 					auth_tag, enc_file = encrypt_file(parsed[1])
-					if auth_tag == -1:
-						waiting = False
-					else:
+					if auth_tag != -1:
 						msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1], enc_file, auth_tag)
 				else:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
@@ -149,14 +144,10 @@ while True:
 			if msg != None:
 				local_seq_num += 1
 				netif.send_msg(SERVER_ADDR, msg)
-				waiting = True
 				start = time.time()
-		while waiting:
+		rcv = True
+		while rcv:
+			time.sleep(1)
 			status, rcv = netif.receive_msg(blocking = False)
-			if (time.time() - start > 3):
-				print('Took too long to receive a response.')
-				print('Something went wrong.')
-				print('Shutting down...')
-				sys.exit()
 			if (status):
 				process_msg(rcv)
