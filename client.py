@@ -10,8 +10,8 @@ SERVER_ADDR='A'
 MY_DIR = sys.argv[1]
 my_privenckey = load_RSA_key(MY_DIR + '/privenc.pem')
 my_privsigkey = load_ECC_key(MY_DIR + '/privsig.pem')
-server_pubenckey = load_RSA_key(MY_DIR + '/keys/server/pubenc.pem')
-server_pubsigkey = load_ECC_key(MY_DIR + '/keys/server/pubsig.pem')
+server_pubenckey = load_RSA_key(MY_DIR + '/server/pubenc.pem')
+server_pubsigkey = load_ECC_key(MY_DIR + '/server/pubsig.pem')
 from_server_seq_num = -1
 local_seq_num = 1
 start = time.time()
@@ -19,7 +19,8 @@ start = time.time()
 def get_aes_key(filename):
 	with open(filename, 'rt') as sf:
 		return bytes.fromhex(sf.readline()[len("key: "):len("key: ")+32])
-my_privaeskey  = get_aes_key('privaes.txt')
+
+my_privaeskey  = get_aes_key(MY_DIR + '/privaes.txt')
 
 def encrypt_file(filename):
 	"""
