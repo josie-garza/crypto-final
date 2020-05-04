@@ -50,16 +50,20 @@ def process_command(code, add_info='', file=b''):
             send_error_msg('unable to make directory')
             print("MKDIR - unable to make directory error")
     elif code == 'RMD':
-        try:
-            os.rmdir(user_dir + current_dir + add_info)
-            send('SUC')
-            print("RMD success - directory removed")
-        except FileNotFoundError:
-            send_error_msg('unable to remove directory - does not exist')
-            print("RMD - file not found error")
-        except OSError:
-            send_error_msg('unable to remove directory - invalid directory syntax or directory not empty')
-            print("RMD - directory not empty error")
+        if all([i == '.' for i in add_info.split('/')]):
+            send_error_msg('invalid syntax')
+            print("RMD - invalid syntax")
+        else:
+            try:
+                os.rmdir(user_dir + current_dir + add_info)
+                send('SUC')
+                print("RMD success - directory removed")
+            except FileNotFoundError:
+                send_error_msg('unable to remove directory - does not exist')
+                print("RMD - file not found error")
+            except OSError:
+                send_error_msg('unable to remove directory - invalid directory syntax or directory not empty')
+                print("RMD - directory not empty error")
     elif code == 'GWD':
         send('REP', 'home/' + current_dir)
         print("GWD response sent")
