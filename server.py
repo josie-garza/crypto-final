@@ -52,35 +52,30 @@ def process_command(code, add_info='', file=b''):
     """Executes a received command."""
     global current_dir, from_client_seq_num
     if code in ['MKD', 'RMD', 'UPL', 'DNL', 'RMF'] and '..' in add_info:
-        send_error_msg('Use CWD with .. before executing this command.')
+        send_error_msg('Use CWD with .. first to operate on outer folder.')
         print(".. used in inappropriate message")
+    elif code in ['MKD', 'RMD', 'CWD', 'UPL', 'DNL', 'RMF'] and add_info == '':
+        send_error_msg('no parameter given')
+        print("no parameter given error sent")
     elif code == 'MKD':
-        if add_info == '':
-            send_error_msg('no parameter given')
-            print("MKD no parameter given error sent")
-        else:
-            try:
-                os.mkdir(user_dir + current_dir + add_info)
-                send('SUC')
-                print("MKD success sent")
-            except FileExistsError:
-                send_error_msg('unable to make directory')
-                print("MKDIR - unable to make directory error")
+        try:
+            os.mkdir(user_dir + current_dir + add_info)
+            send('SUC')
+            print("MKD success sent")
+        except FileExistsError:
+            send_error_msg('unable to make directory')
+            print("MKDIR - unable to make directory error")
     elif code == 'RMD':
-        if add_info == '':
-            send_error_msg('no parameter given')
-            print("RMD no parameter given error sent")
-        else:
-            try:
-                os.rmdir(user_dir + current_dir + add_info)
-                send('SUC')
-                print("RMD success - directory removed")
-            except FileNotFoundError:
-                send_error_msg('unable to remove directory - does not exist')
-                print("RMD - file not found error")
-            except OSError:
-                send_error_msg('unable to remove directory - not empty')
-                print("RMD - directory not empty error")
+        try:
+            os.rmdir(user_dir + current_dir + add_info)
+            send('SUC')
+            print("RMD success - directory removed")
+        except FileNotFoundError:
+            send_error_msg('unable to remove directory - does not exist')
+            print("RMD - file not found error")
+        except OSError:
+            send_error_msg('unable to remove directory - invalid directory syntax or directory not empty')
+            print("RMD - directory not empty error")
     elif code == 'GWD':
         send('REP', 'home/' + current_dir)
         print("GWD response sent")
@@ -90,19 +85,14 @@ def process_command(code, add_info='', file=b''):
         if success:
             send('REP', 'Changed current directory to home/' + current_dir)
             print("CWD success - directory changed")
-    elif code == 'LST':  # TODO: is it an issue that this will break for long lists?
+    elif code == 'LST':
         directories = os.listdir(user_dir + current_dir)
         for d in directories:
             send('RES', d)
-        # output = ', '.join(directories)
-        # send('REP', output)
         send('SUC')
         print("LST response sent")
     elif code == 'UPL':
-        if add_info == '':
-            send_error_msg('no file name given')
-            print("UPL no file name given error sent")
-        elif file == '':
+        if file == '':
             send_error_msg('no file given')
             print("UPL no file given error sent")
         else:
@@ -115,22 +105,15 @@ def process_command(code, add_info='', file=b''):
                 send_error_msg('path not found')
                 print("UPL - path not found error")
     elif code == 'DNL':
-        if add_info == '':
-            send_error_msg('no file name given')
-            print("DNL no file name given error sent")
-        else:
-            try:
-                with open(user_dir + current_dir + add_info, 'rb') as f:
-                    file_contents = f.read()
-                send('REP', add_info, file_contents)
-                print("DNL response sent")
-            except FileNotFoundError:
-                send_error_msg('file not found')
-                print("DNL - file not found error")
+        try:
+            with open(user_dir + current_dir + add_info, 'rb') as f:
+                file_contents = f.read()
+            send('REP', add_info, file_contents)
+            print("DNL response sent")
+        except FileNotFoundError:
+            send_error_msg('file not found')
+            print("DNL - file not found error")
     elif code == 'RMF':
-        if add_info == '':
-            send_error_msg('no file name given')
-            print("RMF no file name given error sent")
         try:
             os.remove(user_dir + current_dir + add_info)
             send('SUC')
@@ -174,7 +157,7 @@ def change_dir(directories, old_dir):
                 new_dir = '/'.join(path)
                 del directories[0]
         else:
-            actual_dirs = os.listdir(user_dir + current_dir)
+            actual_dirs = filter(os.path.isdir, os.listdir(user_dir + current_dir))
             if directories[0] not in actual_dirs:
                 send_error_msg('directory does not exist')
                 print("CWD - directory does not exist error")
