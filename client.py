@@ -14,7 +14,9 @@ server_pubenckey = load_RSA_key(MY_DIR + '/keys/server/pubenc.pem')
 server_pubsigkey = load_ECC_key(MY_DIR + '/keys/server/pubsig.pem')
 from_server_seq_num = -1
 local_seq_num = 1
-start = time.time()
+# this value must be larger than the amount of time it takes to receive a
+# network message if having difficulties increase this value by 0.5
+network_delay = 1.5
 
 def get_aes_key(filename):
 	with open(filename, 'rt') as sf:
@@ -72,7 +74,7 @@ def handle_seq_num(received_seq_num):
 		return -1
 
 def process_cmd(cmd, add_info, auth_tag, file):
-	global start, from_server_seq_num, local_seq_num
+	global from_server_seq_num, local_seq_num
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
 		local_seq_num = 1
@@ -86,7 +88,6 @@ def process_cmd(cmd, add_info, auth_tag, file):
 		else:
 			print(add_info.decode('ascii'))
 	elif cmd == 'RES':
-		start = time.time()
 		print(add_info.decode('ascii'))
 	elif cmd == 'ERR':
 		print('Error message received - ', add_info)
@@ -144,10 +145,9 @@ while True:
 			if msg != None:
 				local_seq_num += 1
 				netif.send_msg(SERVER_ADDR, msg)
-				start = time.time()
 		rcv = True
 		while rcv:
-			time.sleep(1)
+			time.sleep(network_delay)
 			status, rcv = netif.receive_msg(blocking = False)
 			if (status):
 				process_msg(rcv)
