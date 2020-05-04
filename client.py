@@ -79,7 +79,7 @@ def process_cmd(cmd, add_info, auth_tag, file):
 	cmd = cmd.decode('ascii')
 	if cmd == 'SCS': # on login success
 		local_seq_num = 1
-		print('Login success.')
+		print('Login success... wait to be prompted for command.')
 	elif cmd == 'SUC':
 		pass
 	elif cmd == 'REP':
