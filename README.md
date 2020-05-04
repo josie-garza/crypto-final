@@ -9,6 +9,8 @@ The directories named after user IDs simulate the local storage of each user, an
 
 The server directory should contain subdirectories for each user for their files, as well as one for each user's keys.
 
+*NOTE:* In client.py, there is a global variable named "network_delay". This value must be larger than the time (in seconds) it takes the server to send a message to the client. It's default value is ~2 seconds. If you are experiencing issues when attempting to run the code (such as sequence number errors), try increasing this value by half-second increments until the issues are resolved. 
+
 Usage
 -----
 
