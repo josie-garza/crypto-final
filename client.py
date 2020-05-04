@@ -26,7 +26,11 @@ def encrypt_file(filename):
 	"""
 	Encrypted the file under the given filename with GCM encryption.
 	"""
-	inf = open(filename, 'r')
+	try:
+		inf = open(filename, 'r')
+	except:
+		print('File does not exist.')
+		return -1, -1
 	payload = inf.read()
 	payload = payload.encode('ascii')
 	cipher = AES.new(my_privaeskey, AES.MODE_GCM)
@@ -119,6 +123,7 @@ while True:
 	else:
 		cmd = parsed[0]
 		if is_valid_cmd(cmd):
+			msg = None
 			if len(parsed) > 1:
 				if cmd == 'LGN':
 					if parsed[1] != MY_DIR:
@@ -126,7 +131,10 @@ while True:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
 				elif cmd == 'UPL':
 					auth_tag, enc_file = encrypt_file(parsed[1])
-					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1], enc_file, auth_tag)
+					if auth_tag == -1:
+						waiting = False
+					else:
+						msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1], enc_file, auth_tag)
 				else:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey, parsed[1])
 			else:
@@ -137,10 +145,12 @@ while True:
 					sys.exit()
 				else:
 					msg = construct_msg(get_ver_num(), local_seq_num, cmd, server_pubenckey, my_privsigkey)
-			local_seq_num += 1
-			netif.send_msg(SERVER_ADDR, msg)
-			waiting = True
-			start = time.time()
+			if msg != None:
+				local_seq_num += 1
+				netif.send_msg(SERVER_ADDR, msg)
+				print('send message')
+				waiting = True
+				start = time.time()
 		while waiting:
 			status, rcv = netif.receive_msg(blocking = False)
 			if (time.time() - start > 3):
