@@ -16,7 +16,7 @@ from_server_seq_num = -1
 local_seq_num = 1
 # this value must be larger than the amount of time it takes to receive a
 # network message if having difficulties increase this value by 0.5
-network_delay = 1.5
+network_delay = 2
 
 def get_aes_key(filename):
 	with open(filename, 'rt') as sf:
