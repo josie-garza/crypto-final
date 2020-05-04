@@ -2,3 +2,4 @@ network/
 __pycache__/
 priv.pem
 .idea
+.DS_Store
